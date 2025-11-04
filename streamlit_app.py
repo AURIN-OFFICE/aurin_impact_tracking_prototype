@@ -70,13 +70,6 @@ api_key_input = st.sidebar.text_input(
 with st.sidebar:
     submit_key = st.button("🔑 Submit Key", type="primary", use_container_width=True)
     clear_key = st.button("🗑️ Clear", use_container_width=True)
-# col1, col2 = st.sidebar.columns(2)
-
-# with col1:
-    
-
-# with col2:
-    
 
 # Handle API key submission
 if submit_key and api_key_input:
@@ -209,23 +202,7 @@ if df_aurin_main is not None:
             hide_index=True
         )
         
-        # Create a bar chart for citations
-        fig_citations = px.bar(
-            top_5_cited_articles,
-            x='times_cited',
-            y='title',
-            orientation='h',
-            title="Citation Count by Article",
-            labels={'times_cited': 'Number of Citations', 'title': 'Article Title'},
-            color='times_cited',
-            color_continuous_scale='Blues'
-        )
-        fig_citations.update_layout(
-            height=400,
-            yaxis={'categoryorder': 'total ascending'},
-            showlegend=False
-        )
-        st.plotly_chart(fig_citations, use_container_width=True)
+
     else:
         st.info("No cited articles found.")
     
@@ -236,14 +213,14 @@ if df_aurin_main is not None:
         # Create comprehensive organization analysis
         if not df_affiliations.empty:
             # Calculate metrics per organization
-            # Count publications per organization by counting rows
+            # Count unique researchers per organization by counting rows
             org_metrics = df_affiliations.groupby('aff_name').agg({
                 'aff_country': 'first'  # Get country for each org
             }).reset_index()
             
-            # Add publication count by counting occurrences of each organization
+            # Add researchers count by counting occurrences of each organization
             org_counts = df_affiliations['aff_name'].value_counts().reset_index()
-            org_counts.columns = ['aff_name', 'publication_count']
+            org_counts.columns = ['aff_name', 'researcher_count']
             org_metrics = org_metrics.merge(org_counts, on='aff_name', how='left')
             
             # Add citation data if available
@@ -255,14 +232,14 @@ if df_aurin_main is not None:
                 org_metrics['times_cited'] = 0
             
             # Sort by publication count (descending)
-            org_metrics = org_metrics.sort_values('publication_count', ascending=False)
+            org_metrics = org_metrics.sort_values('researcher_count', ascending=False)
             
             # Summary metrics
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Total Organizations", len(org_metrics))
             with col2:
-                st.metric("Avg Publications/Org", f"{org_metrics['publication_count'].mean():.1f}")
+                st.metric("Avg Publications/Org", f"{org_metrics['researcher_count'].mean():.1f}")
             with col3:
                 st.metric("Top Contributing Org", org_metrics.iloc[0]['aff_name'][:20] + "..." if len(org_metrics.iloc[0]['aff_name']) > 20 else org_metrics.iloc[0]['aff_name'])
             
@@ -282,8 +259,8 @@ if df_aurin_main is not None:
                 filtered_orgs = org_metrics.copy()
             
             # Sort based on selection
-            if sort_by == "Publications":
-                filtered_orgs = filtered_orgs.sort_values('publication_count', ascending=False)
+            if sort_by == "Researchers":
+                filtered_orgs = filtered_orgs.sort_values('researcher_count', ascending=False)
             elif sort_by == "Citations":
                 filtered_orgs = filtered_orgs.sort_values('times_cited', ascending=False)
             elif sort_by == "Name":
@@ -300,31 +277,33 @@ if df_aurin_main is not None:
                 
                 # Show top 10 in expandable format
                 for i, (_, org) in enumerate(filtered_orgs.head(10).iterrows()):
-                    with st.expander(f"#{i+1} {org['aff_name']} ({org['publication_count']} publications)"):
+                    with st.expander(f"#{i+1} {org['aff_name']} ({org['researcher_count']} unique researchers)"):
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Publications", org['publication_count'])
+                            st.metric("Unique Researchers", org['researcher_count'])
                         with col2:
                             st.metric("Total Citations", f"{org['times_cited']:,}")
                         with col3:
                             st.metric("Country", org['aff_country'])
                         
                         # Show publications from this organization
-                        org_pubs = df_affiliations[df_affiliations['aff_name'] == org['aff_name']]
-                        if not org_pubs.empty:
-                            st.write("**Publications from this organization:**")
-                            st.write(f"• {org['publication_count']} publications found")
-                            # If we have publication IDs, we could link to main publications
-                            if 'publication_id' in df_affiliations.columns:
-                                pub_ids = org_pubs['publication_id'].unique()[:3]
-                                for pub_id in pub_ids:
-                                    st.write(f"• Publication ID: {pub_id}")
+                        org_researcher = df_affiliations[df_affiliations['aff_name'] == org['aff_name']]
+                        if not org_researcher.empty:
+                            st.write("**Researchers from this organization:**")
+                            st.write(f"• {org['researcher_count']} unique researchers found")
+                            # If we have researcher IDs, we could link to main research groups
+                            if 'researcher_id' in df_affiliations.columns:
+                                researcher_ids = org_researcher['researcher_id'].unique()[:3]
+                                for researcher in researcher_ids:
+                                    selected_affiliation = df_affiliations[df_affiliations['researcher_id']==researcher_ids[0]]
+                                    researcher_name = selected_affiliation['first_name'][0]+ " " + selected_affiliation['last_name'][0]
+                                    st.write(f"• Example Researcher: {researcher_name}")
                             else:
-                                st.write("• Publication details available in main dataset")
+                                st.write("• Researcher details available in main dataset")
                 
                 # Interactive data table
                 st.subheader("📊 Complete Organization Data")
-                display_orgs = filtered_orgs[['aff_name', 'aff_country', 'publication_count', 'times_cited']].copy()
+                display_orgs = filtered_orgs[['aff_name', 'aff_country', 'researcher_count', 'times_cited']].copy()
                 display_orgs.columns = ['Organization', 'Country', 'Publications', 'Total Citations']
                 display_orgs['Avg Citations'] = (display_orgs['Total Citations'] / display_orgs['Publications']).round(1)
                 
@@ -342,12 +321,12 @@ if df_aurin_main is not None:
                     top_15 = filtered_orgs.head(15)
                     fig_orgs = px.bar(
                         top_15,
-                        x='publication_count',
+                        x='researcher_count',
                         y='aff_name',
                         orientation='h',
-                        title="Top 15 Organizations by Publication Count",
-                        labels={'publication_count': 'Number of Publications', 'aff_name': 'Organization'},
-                        color='publication_count',
+                        title="Top 15 Organizations by Researcher Count",
+                        labels={'researcher_count': 'Number of Researchers', 'aff_name': 'Organisation'},
+                        color='researcher_count',
                         color_continuous_scale='Blues'
                     )
                     fig_orgs.update_layout(height=500, yaxis={'categoryorder': 'total ascending'})
