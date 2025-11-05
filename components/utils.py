@@ -2,6 +2,11 @@
 Utility functions for components.
 """
 import pandas as pd
+try:
+    import pycountry
+    PYCOUNTRY_AVAILABLE = True
+except ImportError:
+    PYCOUNTRY_AVAILABLE = False
 
 
 def get_first_author_name(authors):
@@ -42,4 +47,30 @@ def get_first_author_name(authors):
     except (TypeError, AttributeError, IndexError):
         pass
     return None, None
+
+
+def get_country_code(country_name):
+    """
+    Convert country name to ISO-3 code.
+    
+    Args:
+        country_name: Name of the country
+        
+    Returns:
+        ISO-3 country code (str) or None if not found
+    """
+    if not PYCOUNTRY_AVAILABLE:
+        return None
+    
+    try:
+        # Try exact match first
+        country = pycountry.countries.search_fuzzy(country_name)[0]
+        return country.alpha_3
+    except (LookupError, IndexError):
+        # Try common name variations
+        try:
+            country = pycountry.countries.get(name=country_name)
+            return country.alpha_3
+        except (LookupError, AttributeError):
+            return None
 

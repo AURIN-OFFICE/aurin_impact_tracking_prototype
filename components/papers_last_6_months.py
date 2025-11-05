@@ -26,7 +26,7 @@ class PapersLast6MonthsComponent(BaseComponent):
             st.warning("No data available to display recent papers.")
             return
         
-        st.markdown('<div class="section-header">📅 Papers Published in Last 6 Months CITING AURIN</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">📅 Papers Published in Last 6 Months Citing AURIN</div>', unsafe_allow_html=True)
         
         # Filter papers from last 6 months
         six_months_ago = datetime.datetime.now() - datetime.timedelta(days=180)

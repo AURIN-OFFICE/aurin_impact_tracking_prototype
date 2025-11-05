@@ -27,7 +27,7 @@ class RecentPapersComponent(BaseComponent):
             st.warning("No data available to display recent papers.")
             return
         
-        st.markdown('<div class="section-header">📚 Top 5 Most Recent Papers CITING AURIN</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">📚 Top 5 Most Recent Papers Citing AURIN</div>', unsafe_allow_html=True)
         
         # Work with a copy to avoid mutating original data
         data_copy = self.data.copy()
