@@ -33,8 +33,13 @@ sidebar.render()
 header = HeaderComponent()
 header.render()
 
-# Get API key from sidebar
+# Get API key and date range from sidebar
 api_key = sidebar.get_api_key()
+from_date, to_date = sidebar.get_date_range()
+
+# Convert date objects to strings in YYYY-MM-DD format if they exist
+from_date_str = from_date.strftime("%Y-%m-%d") if from_date else None
+to_date_str = to_date.strftime("%Y-%m-%d") if to_date else None
 
 # Initialize data loader
 data_loader = DimensionsDataLoader()
@@ -42,7 +47,11 @@ data_loader = DimensionsDataLoader()
 # Load data
 if api_key:
     with st.spinner("Loading AURIN data from Dimensions API..."):
-        df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = data_loader.load_data(api_key)
+        df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = data_loader.load_data(
+            api_key, 
+            from_date=from_date_str, 
+            to_date=to_date_str
+        )
 else:
     df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = None, None, None, None, None
 
@@ -70,15 +79,9 @@ if df_aurin_main is not None:
     recent_papers = RecentPapersComponent(data=df_aurin_main)
     recent_papers.render()
     
-    papers_6_months = PapersLast6MonthsComponent(data=df_aurin_main)
-    papers_6_months.render()
-    
-    # citation_dist = CitationDistributionComponent(data=df_aurin_main)
-    # citation_dist.render()
-    
-    # Footer
-    st.markdown("---")
-    st.markdown("**Data Source:** Dimensions API | **Generated:** " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    if not from_date_str and not to_date_str:
+        papers_6_months = PapersLast6MonthsComponent(data=df_aurin_main)
+        papers_6_months.render()
 
 else:
     if not api_key:

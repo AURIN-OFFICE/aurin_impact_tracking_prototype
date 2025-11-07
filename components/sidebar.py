@@ -20,6 +20,10 @@ class SidebarComponent(BaseComponent):
             st.session_state.api_key = None
         if 'api_key_input' not in st.session_state:
             st.session_state.api_key_input = ""
+        if 'from_date' not in st.session_state:
+            st.session_state.from_date = None
+        if 'to_date' not in st.session_state:
+            st.session_state.to_date = None
     
     def _render_logo(self) -> None:
         """Render AURIN logo at the top of the sidebar."""
@@ -30,9 +34,34 @@ class SidebarComponent(BaseComponent):
         """Render the sidebar component."""
         # Add AURIN logo at the top
         self._render_logo()
-        
-        st.sidebar.header("🔧 Configuration")
         st.sidebar.info("This dashboard displays AURIN research impact metrics and analytics.")
+        
+        st.sidebar.header("🔧 Configuration")    
+        # Date range filters
+        
+        st.sidebar.subheader("📅 Date Range Filter")
+        st.sidebar.info("Filter publications by publication date range (optional)")
+        
+        from_date = st.sidebar.date_input(
+            "From Date",
+            value=st.session_state.get('from_date'),
+            help="Select the start date for filtering publications"
+        )
+        
+        to_date = st.sidebar.date_input(
+            "To Date",
+            value=st.session_state.get('to_date'),
+            help="Select the end date for filtering publications"
+        )
+        
+        # Validate date range
+        if from_date and to_date and from_date > to_date:
+            st.sidebar.error("❌ From date must be before To date")
+        else:
+            st.session_state.from_date = from_date
+            st.session_state.to_date = to_date
+        
+        st.sidebar.markdown("---")
         
         # API Key input
         api_key_input = st.sidebar.text_input(
@@ -68,6 +97,8 @@ class SidebarComponent(BaseComponent):
         if api_key_input != st.session_state.get('api_key_input', ''):
             st.session_state.api_key_input = api_key_input
         
+
+        st.sidebar.markdown("---")
         # Show status
         if st.session_state.get('api_key'):
             st.sidebar.success("✅ API key is active")
@@ -82,4 +113,16 @@ class SidebarComponent(BaseComponent):
             API key string or None
         """
         return st.session_state.get('api_key')
+    
+    def get_date_range(self) -> tuple:
+        """
+        Get the current date range from session state.
+        
+        Returns:
+            Tuple of (from_date, to_date) or (None, None) if not set
+        """
+        return (
+            st.session_state.get('from_date'),
+            st.session_state.get('to_date')
+        )
 

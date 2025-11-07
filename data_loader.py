@@ -54,8 +54,40 @@ def _validate_api_key(api_key: str) -> bool:
     return True
 
 
+def build_query_with_dates(query: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> str:
+    """
+    Build query string with date filters.
+    
+    Args:
+        query: Base query string
+        from_date: Start date for filtering (YYYY-MM-DD format) or None
+        to_date: End date for filtering (YYYY-MM-DD format) or None
+        
+    Returns:
+        Query string with date filters applied
+    """
+    final_query = query
+    if from_date or to_date:
+        where_clauses = []
+        if from_date:
+            where_clauses.append(f'date >= "{from_date}"')
+        if to_date:
+            where_clauses.append(f'date <= "{to_date}"')
+        
+        if where_clauses:
+            where_clause = " and ".join(where_clauses)
+            # Insert where clause before return statement
+            if "return" in final_query.lower():
+                return_idx = final_query.lower().find("return")
+                final_query = final_query[:return_idx].strip() + f"\nwhere {where_clause}\n" + final_query[return_idx:]
+            else:
+                # If no return statement, append where clause
+                final_query = final_query.strip() + f"\nwhere {where_clause}"
+    return final_query
+
+
 @st.cache_data
-def _load_dimensions_data(api_key: str, endpoint: str, query: str) -> Tuple[Optional[pd.DataFrame], ...]:
+def _load_dimensions_data(api_key: str, endpoint: str, query: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Tuple[Optional[pd.DataFrame], ...]:
     """
     Cached function to load and process AURIN data from Dimensions API.
     
@@ -63,6 +95,8 @@ def _load_dimensions_data(api_key: str, endpoint: str, query: str) -> Tuple[Opti
         api_key: Dimensions API key
         endpoint: Dimensions API endpoint
         query: Query string for fetching publications
+        from_date: Start date for filtering (YYYY-MM-DD format) or None
+        to_date: End date for filtering (YYYY-MM-DD format) or None
         
     Returns:
         Tuple of DataFrames (main, authors, affiliations, funders, investigators)
@@ -75,7 +109,9 @@ def _load_dimensions_data(api_key: str, endpoint: str, query: str) -> Tuple[Opti
         dimcli.login(key=api_key, endpoint=endpoint)
         dsl = dimcli.Dsl()
         
-        res_aurin = dsl.query_iterative(query)
+        # Build query with date filters if provided
+        final_query = build_query_with_dates(query, from_date, to_date)    
+        res_aurin = dsl.query_iterative(final_query)
         df_aurin_main = res_aurin.as_dataframe()
         df_authors = res_aurin.as_dataframe_authors()
         df_affiliations = res_aurin.as_dataframe_authors_affiliations()
@@ -135,6 +171,19 @@ class DimensionsDataLoader(BaseDataLoader):
             return publications[id+title+authors+pages+type+volume+issue+journal+times_cited+date+date_online]
         """
     
+    def build_query_with_dates(self, from_date: Optional[str] = None, to_date: Optional[str] = None) -> str:
+        """
+        Build query string with date filters.
+        
+        Args:
+            from_date: Start date for filtering (YYYY-MM-DD format) or None
+            to_date: End date for filtering (YYYY-MM-DD format) or None
+            
+        Returns:
+            Query string with date filters applied
+        """
+        return build_query_with_dates(self.query, from_date, to_date)
+    
     def validate_api_key(self, api_key: str) -> bool:
         """
         Validate the API key.
@@ -147,15 +196,17 @@ class DimensionsDataLoader(BaseDataLoader):
         """
         return _validate_api_key(api_key)
     
-    def load_data(self, api_key: str) -> Tuple[Optional[pd.DataFrame], ...]:
+    def load_data(self, api_key: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Tuple[Optional[pd.DataFrame], ...]:
         """
         Load and process AURIN data from Dimensions API.
         
         Args:
             api_key: Dimensions API key
+            from_date: Start date for filtering (YYYY-MM-DD format) or None
+            to_date: End date for filtering (YYYY-MM-DD format) or None
             
         Returns:
             Tuple of DataFrames (main, authors, affiliations, funders, investigators)
         """
-        return _load_dimensions_data(api_key, self.endpoint, self.query)
+        return _load_dimensions_data(api_key, self.endpoint, self.query, from_date, to_date)
 
