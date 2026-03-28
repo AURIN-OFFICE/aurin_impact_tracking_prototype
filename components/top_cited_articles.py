@@ -36,12 +36,26 @@ class TopCitedArticlesComponent(BaseComponent):
             display_df = top_cited_articles[['title', 'times_cited', 'journal.title', 'date']].copy()
             display_df.columns = ['Title', 'Citations', 'Journal', 'Publication Date']
             display_df['Publication Date'] = pd.to_datetime(display_df['Publication Date']).dt.strftime('%Y-%m-%d')
-            
+
             st.dataframe(
                 display_df,
                 use_container_width=True,
                 hide_index=True
             )
+
+            # Prepare full sorted list for download
+            all_cited = self.data.sort_values('times_cited', ascending=False)
+            if not all_cited.empty:
+                download_df = all_cited[['title', 'times_cited', 'journal.title', 'date']].copy()
+                download_df.columns = ['Title', 'Citations', 'Journal', 'Publication Date']
+                download_df['Publication Date'] = pd.to_datetime(download_df['Publication Date']).dt.strftime('%Y-%m-%d')
+                csv = download_df.to_csv(index=False)
+                st.download_button(
+                    label="⬇️ Download all articles as CSV",
+                    data=csv,
+                    file_name="aurin_articles.csv",
+                    mime="text/csv"
+                )
         else:
             st.info("No cited articles found.")
 
