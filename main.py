@@ -21,6 +21,7 @@ from components.patents import PatentsComponent
 from components.research_categories import ResearchCategoriesComponent
 from components.sdg_categories import SDGCategoriesComponent
 from components.concepts import ConceptsComponent
+from components.trends import TrendsComponent
 
 
 # Page configuration
@@ -63,10 +64,10 @@ else:
 
 # Render components if data is available
 if df_aurin_main is not None:
-    tab_trends, tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants = st.tabs(["Trends", "Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings"])
+    tab_ai_summary, tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants = st.tabs(["AI Summary", "Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings"])
 
-    with tab_trends:
-        st.info("To be implemented: Trends and visualisations of AURIN research output over time, by discipline, etc.")
+    with tab_ai_summary:
+        st.info("To be implemented: AI-generated summary of AURIN research output.")
 
     with tab_research:
         # Initialize and render all components
@@ -75,6 +76,9 @@ if df_aurin_main is not None:
             affiliations_data=df_affiliations
         )
         key_metrics.render()
+
+        trends = TrendsComponent(data=df_aurin_main)
+        trends.render()
 
         top_cited = TopCitedArticlesComponent(data=df_aurin_main)
         top_cited.render()
@@ -90,10 +94,6 @@ if df_aurin_main is not None:
 
         concepts = ConceptsComponent(data=df_aurin_main)
         concepts.render()
-
-        # if not from_date_str and not to_date_str:
-        #     papers_6_months = PapersLast6MonthsComponent(data=df_aurin_main)
-        #     papers_6_months.render()
 
 
 
