@@ -20,6 +20,7 @@ from components.grants import GrantsComponent
 from components.patents import PatentsComponent
 from components.research_categories import ResearchCategoriesComponent
 from components.sdg_categories import SDGCategoriesComponent
+from components.concepts import ConceptsComponent
 
 
 # Page configuration
@@ -86,6 +87,9 @@ if df_aurin_main is not None:
 
         sdg_categories = SDGCategoriesComponent(data=df_aurin_main)
         sdg_categories.render()
+
+        concepts = ConceptsComponent(data=df_aurin_main)
+        concepts.render()
 
         # if not from_date_str and not to_date_str:
         #     papers_6_months = PapersLast6MonthsComponent(data=df_aurin_main)
