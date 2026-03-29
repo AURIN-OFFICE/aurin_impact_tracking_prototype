@@ -61,26 +61,40 @@ def _validate_api_key(api_key: str) -> bool:
     return True
 
 
-def build_query_with_dates(query: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> str:
+def build_query_with_dates(
+    query: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    date_field: str = "date",
+    year_only: bool = False,
+) -> str:
     """
     Build query string with date filters.
-    
+
     Args:
         query: Base query string
         from_date: Start date for filtering (YYYY-MM-DD format) or None
         to_date: End date for filtering (YYYY-MM-DD format) or None
-        
+        date_field: Name of the date field to filter on (default: "date")
+        year_only: If True, extract only the year from dates and use integer comparison
+
     Returns:
         Query string with date filters applied
     """
     final_query = query
     if from_date or to_date:
         where_clauses = []
-        if from_date:
-            where_clauses.append(f'date >= "{from_date}"')
-        if to_date:
-            where_clauses.append(f'date <= "{to_date}"')
-        
+        if year_only:
+            if from_date:
+                where_clauses.append(f'{date_field} >= {from_date[:4]}')
+            if to_date:
+                where_clauses.append(f'{date_field} <= {to_date[:4]}')
+        else:
+            if from_date:
+                where_clauses.append(f'{date_field} >= "{from_date}"')
+            if to_date:
+                where_clauses.append(f'{date_field} <= "{to_date}"')
+
         if where_clauses:
             where_clause = " and ".join(where_clauses)
             # Insert where clause before return statement
@@ -168,13 +182,15 @@ _POLICY_QUERY = f"""
 
 
 @st.cache_data
-def _load_policy_documents(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
+def _load_policy_documents(api_key: str, endpoint: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
     """
     Cached function to load AURIN-related policy documents from Dimensions API.
 
     Args:
         api_key: Dimensions API key
         endpoint: Dimensions API endpoint
+        from_date: Start date for filtering (YYYY-MM-DD format) or None
+        to_date: End date for filtering (YYYY-MM-DD format) or None
 
     Returns:
         DataFrame of policy documents or None on failure
@@ -185,7 +201,8 @@ def _load_policy_documents(api_key: str, endpoint: str) -> Optional[pd.DataFrame
 
         dimcli.login(key=api_key, endpoint=endpoint)
         dsl = dimcli.Dsl()
-        res = dsl.query_iterative(_POLICY_QUERY)
+        query = build_query_with_dates(_POLICY_QUERY, from_date, to_date, date_field="year", year_only=True)
+        res = dsl.query_iterative(query)
         df = res.as_dataframe()
         return df if df is not None and not df.empty else pd.DataFrame()
 
@@ -204,8 +221,8 @@ class PolicyDocumentsDataLoader:
     def __init__(self, endpoint: str = "https://app.dimensions.ai"):
         self.endpoint = endpoint
 
-    def load_data(self, api_key: str) -> Optional[pd.DataFrame]:
-        return _load_policy_documents(api_key, self.endpoint)
+    def load_data(self, api_key: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        return _load_policy_documents(api_key, self.endpoint, from_date, to_date)
 
 
 _GRANTS_QUERY = f"""
@@ -215,13 +232,15 @@ _GRANTS_QUERY = f"""
 
 
 @st.cache_data
-def _load_grants(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
+def _load_grants(api_key: str, endpoint: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
     """
     Cached function to load AURIN-related grants from Dimensions API.
 
     Args:
         api_key: Dimensions API key
         endpoint: Dimensions API endpoint
+        from_date: Start date for filtering (YYYY-MM-DD format) or None
+        to_date: End date for filtering (YYYY-MM-DD format) or None
 
     Returns:
         DataFrame of grants or None on failure
@@ -232,7 +251,8 @@ def _load_grants(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
 
         dimcli.login(key=api_key, endpoint=endpoint)
         dsl = dimcli.Dsl()
-        res = dsl.query_iterative(_GRANTS_QUERY)
+        query = build_query_with_dates(_GRANTS_QUERY, from_date, to_date, date_field="start_date")
+        res = dsl.query_iterative(query)
         df = res.as_dataframe()
         return df if df is not None and not df.empty else pd.DataFrame()
 
@@ -251,8 +271,8 @@ class GrantsDataLoader:
     def __init__(self, endpoint: str = "https://app.dimensions.ai"):
         self.endpoint = endpoint
 
-    def load_data(self, api_key: str) -> Optional[pd.DataFrame]:
-        return _load_grants(api_key, self.endpoint)
+    def load_data(self, api_key: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        return _load_grants(api_key, self.endpoint, from_date, to_date)
 
 
 _PATENTS_QUERY = f"""
@@ -262,13 +282,15 @@ _PATENTS_QUERY = f"""
 
 
 @st.cache_data
-def _load_patents(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
+def _load_patents(api_key: str, endpoint: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
     """
     Cached function to load AURIN-related patents from Dimensions API.
 
     Args:
         api_key: Dimensions API key
         endpoint: Dimensions API endpoint
+        from_date: Start date for filtering (YYYY-MM-DD format) or None
+        to_date: End date for filtering (YYYY-MM-DD format) or None
 
     Returns:
         DataFrame of patents or None on failure
@@ -279,7 +301,8 @@ def _load_patents(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
 
         dimcli.login(key=api_key, endpoint=endpoint)
         dsl = dimcli.Dsl()
-        res = dsl.query_iterative(_PATENTS_QUERY)
+        query = build_query_with_dates(_PATENTS_QUERY, from_date, to_date, date_field="publication_date")
+        res = dsl.query_iterative(query)
         df = res.as_dataframe()
         return df if df is not None and not df.empty else pd.DataFrame()
 
@@ -298,8 +321,8 @@ class PatentsDataLoader:
     def __init__(self, endpoint: str = "https://app.dimensions.ai"):
         self.endpoint = endpoint
 
-    def load_data(self, api_key: str) -> Optional[pd.DataFrame]:
-        return _load_patents(api_key, self.endpoint)
+    def load_data(self, api_key: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        return _load_patents(api_key, self.endpoint, from_date, to_date)
 
 
 class DimensionsDataLoader(BaseDataLoader):

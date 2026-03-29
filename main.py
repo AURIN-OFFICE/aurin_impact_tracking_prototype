@@ -64,11 +64,11 @@ else:
 if df_aurin_main is not None:
     # Load secondary datasets up front so the AI summary can use them all
     with st.spinner("Loading policy documents from Dimensions API..."):
-        df_policies = PolicyDocumentsDataLoader().load_data(api_key)
+        df_policies = PolicyDocumentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
     with st.spinner("Loading patents from Dimensions API..."):
-        df_patents = PatentsDataLoader().load_data(api_key)
+        df_patents = PatentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
     with st.spinner("Loading grants from Dimensions API..."):
-        df_grants = GrantsDataLoader().load_data(api_key)
+        df_grants = GrantsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
 
     tab_ai_summary, tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants = st.tabs(["AI Summary", "Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings"])
 
