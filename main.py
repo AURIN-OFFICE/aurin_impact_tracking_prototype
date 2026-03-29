@@ -18,6 +18,10 @@ from components.citation_distribution import CitationDistributionComponent
 from components.policy_documents import PolicyDocumentsComponent
 from components.grants import GrantsComponent
 from components.patents import PatentsComponent
+from components.research_categories import ResearchCategoriesComponent
+from components.sdg_categories import SDGCategoriesComponent
+from components.concepts import ConceptsComponent
+from components.trends import TrendsComponent
 
 
 # Page configuration
@@ -60,7 +64,10 @@ else:
 
 # Render components if data is available
 if df_aurin_main is not None:
-    tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants = st.tabs(["Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings"])
+    tab_ai_summary, tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants = st.tabs(["AI Summary", "Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings"])
+
+    with tab_ai_summary:
+        st.info("To be implemented: AI-generated summary of AURIN research output.")
 
     with tab_research:
         # Initialize and render all components
@@ -70,15 +77,25 @@ if df_aurin_main is not None:
         )
         key_metrics.render()
 
+        trends = TrendsComponent(data=df_aurin_main)
+        trends.render()
+
         top_cited = TopCitedArticlesComponent(data=df_aurin_main)
         top_cited.render()
 
         recent_papers = RecentPapersComponent(data=df_aurin_main)
         recent_papers.render()
 
-        if not from_date_str and not to_date_str:
-            papers_6_months = PapersLast6MonthsComponent(data=df_aurin_main)
-            papers_6_months.render()
+        research_categories = ResearchCategoriesComponent(data=df_aurin_main)
+        research_categories.render()
+
+        sdg_categories = SDGCategoriesComponent(data=df_aurin_main)
+        sdg_categories.render()
+
+        concepts = ConceptsComponent(data=df_aurin_main)
+        concepts.render()
+
+
 
     with tab_research_organisations:
         affiliated_orgs = AffiliatedOrganisationsComponent(
