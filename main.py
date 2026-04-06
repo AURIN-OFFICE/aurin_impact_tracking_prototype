@@ -4,7 +4,7 @@ This file orchestrates all components and data loading.
 """
 import streamlit as st
 
-from data_loader import DimensionsDataLoader, PolicyDocumentsDataLoader, GrantsDataLoader, PatentsDataLoader, ResearchTrendsGrantsDataLoader, ResearchTrendsPublicationsDataLoader
+from data_loader import DimensionsDataLoader, PolicyDocumentsDataLoader, GrantsDataLoader, PatentsDataLoader, ResearchTrendMonitorDataLoader
 from components.sidebar import SidebarComponent
 from components.header import HeaderComponent
 from components.key_metrics import KeyMetricsComponent
@@ -19,7 +19,7 @@ from components.research_categories import ResearchCategoriesComponent
 from components.sdg_categories import SDGCategoriesComponent
 from components.concepts import ConceptsComponent
 from components.trends import TrendsComponent
-from components.research_trends_analysis import ResearchTrendsAnalysisComponent
+from components.research_trend_monitor import ResearchTrendMonitorComponent
 from components.ai_summary import AISummaryComponent
 from components.ai_summary.gemini_provider import GeminiProvider
 
@@ -72,11 +72,10 @@ if df_aurin_main is not None:
         df_patents = PatentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
     with st.spinner("Loading grants from Dimensions API..."):
         df_grants = GrantsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
-    with st.spinner("Loading research data from Dimensions API..."):
-        df_trends_grants = ResearchTrendsGrantsDataLoader().load_data(api_key)
-        df_trends_publications = ResearchTrendsPublicationsDataLoader().load_data(api_key)
+    with st.spinner("Loading 20-year trend monitor data from Dimensions API..."):
+        df_trend_monitor = ResearchTrendMonitorDataLoader().load_data(api_key)
 
-    tab_ai_summary, tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants, tab_research_trends = st.tabs(["AI Summary", "Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings", "Research Trends Analysis"])
+    tab_ai_summary, tab_research, tab_research_organisations, tab_policies, tab_patents, tab_grants, tab_trend_monitor = st.tabs(["AI Summary", "Research Papers", "Research Organisations", "Policy Documents", "Patents", "AURIN Fundings", "Research Trend Monitor"])
 
     with tab_ai_summary:
         ai_summary = AISummaryComponent(
@@ -142,12 +141,9 @@ if df_aurin_main is not None:
         grants = GrantsComponent(data=df_grants)
         grants.render()
 
-    with tab_research_trends:
-        research_trends = ResearchTrendsAnalysisComponent(
-            grants_data=df_trends_grants,
-            publications_data=df_trends_publications
-        )
-        research_trends.render()
+    with tab_trend_monitor:
+        trend_monitor = ResearchTrendMonitorComponent(publications_data=df_trend_monitor)
+        trend_monitor.render()
 
 else:
     if not api_key:
