@@ -97,13 +97,14 @@ def build_query_with_dates(
 
         if where_clauses:
             where_clause = " and ".join(where_clauses)
-            # Insert where clause before return statement
+            has_where = "where" in final_query.lower()
+            connector = "and" if has_where else "where"
+            # Insert date clause before return statement
             if "return" in final_query.lower():
                 return_idx = final_query.lower().find("return")
-                final_query = final_query[:return_idx].strip() + f"\nwhere {where_clause}\n" + final_query[return_idx:]
+                final_query = final_query[:return_idx].strip() + f"\n{connector} {where_clause}\n" + final_query[return_idx:]
             else:
-                # If no return statement, append where clause
-                final_query = final_query.strip() + f"\nwhere {where_clause}"
+                final_query = final_query.strip() + f"\n{connector} {where_clause}"
     return final_query
 
 
@@ -323,6 +324,121 @@ class PatentsDataLoader:
 
     def load_data(self, api_key: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> Optional[pd.DataFrame]:
         return _load_patents(api_key, self.endpoint, from_date, to_date)
+
+
+_PUBLICATIONS_TREND_MONITOR_QUERY = """
+    search publications
+    where research_org_country_names = "Australia"
+    and (category_for.name @ "*urban*" or category_for.name @ "*planning*" or category_for.name @ "*geography*" or category_for.name @ "*geomatics*" or category_for.name @ "*demography*" or category_for.name @ "*sociology*")
+    return publications[id+year+category_for+concepts]
+"""
+
+
+@st.cache_data
+def _load_research_trend_monitor(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
+    """
+    Cached function to load Australian urban/spatial publications for the Research Trend Monitor.
+    Always queries the last 10 years to support comparison windows.
+
+    Args:
+        api_key: Dimensions API key
+        endpoint: Dimensions API endpoint
+
+    Returns:
+        DataFrame of publications or empty DataFrame on failure
+    """
+    try:
+        if not _validate_api_key(api_key):
+            return None
+
+        import datetime
+        current_year = datetime.datetime.now().year
+        from_year = current_year - 10  # 10-year window (inclusive)
+        from_date = f"{from_year}-01-01"
+
+        dimcli.login(key=api_key, endpoint=endpoint)
+        dsl = dimcli.Dsl()
+        query = build_query_with_dates(
+            _PUBLICATIONS_TREND_MONITOR_QUERY, from_date, to_date=None, date_field="year", year_only=True
+        )
+        res = dsl.query_iterative(query)
+        df = res.as_dataframe()
+        return df if df is not None and not df.empty else pd.DataFrame()
+
+    except Exception as e:
+        error_msg = str(e)
+        if "authentication" in error_msg.lower() or "unauthorized" in error_msg.lower():
+            st.error("❌ Authentication failed when loading trend monitor data.")
+        else:
+            st.error(f"❌ Error loading trend monitor data: {error_msg}")
+        return pd.DataFrame()
+
+
+class ResearchTrendMonitorDataLoader:
+    """Loader for the Research Trend Monitor: 10-year AU urban research publications."""
+
+    def __init__(self, endpoint: str = "https://app.dimensions.ai"):
+        self.endpoint = endpoint
+
+    def load_data(self, api_key: str, **kwargs) -> Optional[pd.DataFrame]:
+        return _load_research_trend_monitor(api_key, self.endpoint)
+
+
+_GRANTS_TREND_MONITOR_QUERY = """
+    search grants
+    where funder_org_countries.name = "Australia"
+    and (category_for.name @ "*urban*" or category_for.name @ "*planning*" or category_for.name @ "*geography*" or category_for.name @ "*geomatics*" or category_for.name @ "*demography*" or category_for.name @ "*sociology*")
+    return grants[id+title+start_date+end_date+funding_org_name+funding_usd+funder_countries+category_for+linkout]
+"""
+
+@st.cache_data
+def _load_grant_trend_monitor(api_key: str, endpoint: str) -> Optional[pd.DataFrame]:
+    """
+    Cached function to load Australian urban/spatial grants for the Grant Trend Monitor.
+    Always queries the last 10 years to support comparison windows.
+
+    Args:
+        api_key: Dimensions API key
+        endpoint: Dimensions API endpoint
+
+    Returns:
+        DataFrame of grants or empty DataFrame on failure
+    """
+    try:
+        if not _validate_api_key(api_key):
+            return None
+
+        import datetime
+        current_year = datetime.datetime.now().year
+        from_year = current_year - 10
+        from_date = f"{from_year}-01-01"
+
+        dimcli.login(key=api_key, endpoint=endpoint)
+        dsl = dimcli.Dsl()
+        query = build_query_with_dates(
+            _GRANTS_TREND_MONITOR_QUERY, from_date, to_date=None, date_field="start_date"
+        )
+        res = dsl.query_iterative(query)
+        df = res.as_dataframe()
+        return df if df is not None and not df.empty else pd.DataFrame()
+
+    except Exception as e:
+        error_msg = str(e)
+        if "authentication" in error_msg.lower() or "unauthorized" in error_msg.lower():
+            st.error("❌ Authentication failed when loading grant trend monitor data.")
+        else:
+            st.error(f"❌ Error loading grant trend monitor data: {error_msg}")
+        return pd.DataFrame()
+
+
+class GrantTrendMonitorDataLoader:
+    """Loader for the Grant Trend Monitor: 10-year AU urban research grants."""
+
+    def __init__(self, endpoint: str = "https://app.dimensions.ai"):
+        self.endpoint = endpoint
+
+    def load_data(self, api_key: str, **kwargs) -> Optional[pd.DataFrame]:
+        return _load_grant_trend_monitor(api_key, self.endpoint)
 
 
 class DimensionsDataLoader(BaseDataLoader):
