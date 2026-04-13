@@ -96,7 +96,7 @@ class SidebarComponent(BaseComponent):
             'from_date': None,
             'to_date': None,
             'active_tab': 'ai_summary',
-            'show_config': False,
+            'show_config': True,
         }
         for key, value in defaults.items():
             if key not in st.session_state:

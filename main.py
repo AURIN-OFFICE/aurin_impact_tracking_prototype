@@ -57,30 +57,52 @@ to_date_str = to_date.strftime("%Y-%m-%d") if to_date else None
 # Load data
 data_loader = DimensionsDataLoader()
 
+_LOAD_STEPS = [
+    "Fetching AURIN publications...",
+    "Fetching policy documents...",
+    "Fetching patents...",
+    "Fetching grants...",
+    "Fetching 10-year research trends...",
+    "Fetching 10-year grant trends...",
+]
+_STEP_PROGRESS = [10, 20, 30, 40, 80, 100]
+
 if api_key:
-    with st.spinner("Loading AURIN data from Dimensions API..."):
+    _progress = st.progress(0, text=_LOAD_STEPS[0])
+    with st.status("Loading dashboard data…", expanded=False) as _load_status:
         df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = data_loader.load_data(
-            api_key,
-            from_date=from_date_str,
-            to_date=to_date_str
+            api_key, from_date=from_date_str, to_date=to_date_str
         )
+        _progress.progress(_STEP_PROGRESS[0], text=_LOAD_STEPS[1])
+
+        if df_aurin_main is not None:
+            df_policies = PolicyDocumentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
+            _progress.progress(_STEP_PROGRESS[1], text=_LOAD_STEPS[2])
+
+            df_patents = PatentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
+            _progress.progress(_STEP_PROGRESS[2], text=_LOAD_STEPS[3])
+
+            df_grants = GrantsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
+            _progress.progress(_STEP_PROGRESS[3], text=_LOAD_STEPS[4])
+
+            df_trend_monitor = ResearchTrendMonitorDataLoader().load_data(api_key)
+            _progress.progress(_STEP_PROGRESS[4], text=_LOAD_STEPS[5])
+
+            df_grant_trend_monitor = GrantTrendMonitorDataLoader().load_data(api_key)
+            _progress.progress(100, text="All data loaded.")
+            _progress.empty()
+
+            _load_status.update(label="Dashboard data loaded.", state="complete")
+        else:
+            df_policies = df_patents = df_grants = df_trend_monitor = df_grant_trend_monitor = None
+            _progress.empty()
+            _load_status.update(label="Failed to load data.", state="error")
 else:
     df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = None, None, None, None, None
+    df_policies = df_patents = df_grants = df_trend_monitor = df_grant_trend_monitor = None
 
+# Render the active section
 if df_aurin_main is not None:
-    # Load secondary datasets up front so the AI summary can use them all
-    with st.spinner("Loading policy documents from Dimensions API..."):
-        df_policies = PolicyDocumentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
-    with st.spinner("Loading patents from Dimensions API..."):
-        df_patents = PatentsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
-    with st.spinner("Loading grants from Dimensions API..."):
-        df_grants = GrantsDataLoader().load_data(api_key, from_date=from_date_str, to_date=to_date_str)
-    with st.spinner("Loading 10-year trend monitor data from Dimensions API..."):
-        df_trend_monitor = ResearchTrendMonitorDataLoader().load_data(api_key)
-    with st.spinner("Loading grant trend monitor data from Dimensions API..."):
-        df_grant_trend_monitor = GrantTrendMonitorDataLoader().load_data(api_key)
-
-    # Render the active section
     if active_tab == "ai_summary":
         AISummaryComponent(
             main_data=df_aurin_main,
