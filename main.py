@@ -88,9 +88,6 @@ df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = data_
 df_policies = PolicyDocumentsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
 df_patents = PatentsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
 df_grants = GrantsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
-df_trend_monitor = ResearchTrendMonitorDataLoader().load_data()
-df_grant_trend_monitor = GrantTrendMonitorDataLoader().load_data()
-
 # Render the active section
 has_data = df_aurin_main is not None and not df_aurin_main.empty
 
@@ -130,9 +127,11 @@ if has_data:
         GrantsComponent(data=df_grants).render()
 
     elif active_tab == "research_trend_monitor":
+        df_trend_monitor = ResearchTrendMonitorDataLoader().load_data()
         ResearchTrendMonitorComponent(publications_data=df_trend_monitor).render()
 
     elif active_tab == "grant_trend_monitor":
+        df_grant_trend_monitor = GrantTrendMonitorDataLoader().load_data()
         GrantTrendMonitorComponent(grants_data=df_grant_trend_monitor).render()
 
 else:

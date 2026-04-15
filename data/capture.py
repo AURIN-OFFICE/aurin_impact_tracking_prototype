@@ -429,7 +429,7 @@ class DataCapture:
         progress_callback: Callable[[float, str], None],
     ) -> None:
         current_year = datetime.datetime.now().year
-        from_year = current_year - 10
+        from_year = current_year - 7
         years = list(range(from_year, current_year + 1))
         chunks = [
             _TREND_FOR_CATEGORIES[i:i + _TREND_CHUNK_SIZE]
@@ -470,7 +470,7 @@ class DataCapture:
         progress_callback: Callable[[float, str], None],
     ) -> None:
         current_year = datetime.datetime.now().year
-        from_year = current_year - 10
+        from_year = current_year - 7
         years = list(range(from_year, current_year + 1))
         chunks = [
             _TREND_FOR_CATEGORIES[i:i + _TREND_CHUNK_SIZE]
