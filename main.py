@@ -25,6 +25,7 @@ from components.patents import PatentsComponent
 from components.aurin_fundings import GrantsComponent
 from components.research_trend import ResearchTrendMonitorComponent
 from components.grant_trend import GrantTrendMonitorComponent
+from components.media_monitor import MediaMonitorComponent
 from components.ai_summary import AISummaryComponent
 from components.ai_summary.gemini_provider import GeminiProvider
 
@@ -88,6 +89,11 @@ df_aurin_main, df_authors, df_affiliations, df_funders, df_investigators = data_
 df_policies = PolicyDocumentsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
 df_patents = PatentsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
 df_grants = GrantsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
+# Media Monitor tab: works independently of Dimensions data
+if active_tab == "media_monitor":
+    MediaMonitorComponent().render()
+    st.stop()
+
 # Render the active section
 has_data = df_aurin_main is not None and not df_aurin_main.empty
 

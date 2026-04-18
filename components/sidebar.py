@@ -10,6 +10,7 @@ IMPACT_METRICS_TABS = [
     ("📄 Research Papers", "research_papers"),
     ("🏢 Research Organisations", "research_organisations"),
     ("📋 Policy Documents", "policy_documents"),
+    ("📰 Media Monitor", "media_monitor"),
     ("🔬 Patents", "patents"),
     ("💰 AURIN Fundings", "aurin_fundings"),
 ]
@@ -140,6 +141,8 @@ class SidebarComponent(BaseComponent):
         )
         for label, key in IMPACT_SPACE_TABS:
             self._nav_button(label, key)
+
+    
 
         st.sidebar.markdown("---")
 

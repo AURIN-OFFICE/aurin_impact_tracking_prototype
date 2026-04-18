@@ -157,3 +157,18 @@ class GrantTrendMonitorDataLoader:
 
     def load_data(self, api_key: str = None, **kwargs) -> pd.DataFrame:
         return _load_grant_trend_monitor()
+
+
+@st.cache_data
+def _load_media_mentions() -> pd.DataFrame:
+    df = AurinDatabase().read_table("media_mentions")
+    if not df.empty and "published_at" in df.columns:
+        df["published_at"] = pd.to_datetime(df["published_at"], utc=True, errors="coerce")
+    return df
+
+
+class MediaMentionsDataLoader:
+    """Reads AURIN media mentions from the local cache."""
+
+    def load_data(self, **kwargs) -> pd.DataFrame:
+        return _load_media_mentions()
