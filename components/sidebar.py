@@ -18,6 +18,7 @@ IMPACT_METRICS_TABS = [
 IMPACT_SPACE_TABS = [
     ("📈 Research Trend Monitor", "research_trend_monitor"),
     ("📊 Grant Trend Monitor", "grant_trend_monitor"),
+    ("💵 Funding Signal Monitor", "funding_signal_monitor"),
 ]
 
 

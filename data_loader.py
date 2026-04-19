@@ -87,7 +87,6 @@ def _load_research_trend_exploded() -> pd.DataFrame:
     Populated during data capture; empty if capture has not been run yet."""
     return AurinDatabase().read_table("research_trend_exploded")
 
-
 @st.cache_data
 def _load_grant_trend_monitor() -> pd.DataFrame:
     return AurinDatabase().read_table("grant_trend")
@@ -184,3 +183,9 @@ class MediaMentionsDataLoader:
 
     def load_data(self, **kwargs) -> pd.DataFrame:
         return _load_media_mentions()
+
+class FundingSignalDataLoader:
+    """Reads grant_trend + grants for the Funding Signal Monitor."""
+
+    def load_data(self, **kwargs) -> tuple:
+        return _load_grant_trend_monitor()

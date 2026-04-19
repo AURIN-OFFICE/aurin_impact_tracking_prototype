@@ -5,7 +5,7 @@ This file orchestrates all components and data loading.
 import streamlit as st
 
 from components._constants import _ENV_DIMENSIONS, _ENV_OPENROUTER
-from data_loader import DimensionsDataLoader, PolicyDocumentsDataLoader, GrantsDataLoader, PatentsDataLoader, ResearchTrendMonitorDataLoader, GrantTrendMonitorDataLoader, WebPolicyDocumentsDataLoader
+from data_loader import DimensionsDataLoader, PolicyDocumentsDataLoader, GrantsDataLoader, PatentsDataLoader, ResearchTrendMonitorDataLoader, GrantTrendMonitorDataLoader, WebPolicyDocumentsDataLoader, FundingSignalDataLoader
 from data.capture import DataCapture, CaptureError
 from data import AurinDatabase
 from components.sidebar import SidebarComponent
@@ -28,6 +28,7 @@ from components.grant_trend import GrantTrendMonitorComponent
 from components.media_monitor import MediaMonitorComponent
 from components.ai_summary import AISummaryComponent
 from components.ai_providers.openrouter_provider import OpenRouterProvider
+from components.funding_signal import FundingSignalMonitorComponent
 from components.pdf_export import (
     generate_research_papers_pdf,
     generate_research_organisations_pdf,
@@ -198,6 +199,14 @@ if has_data:
             "grant_trend_monitor.pdf",
         )
         GrantTrendMonitorComponent(grants_data=df_grant_trend_monitor).render()
+
+    elif active_tab == "funding_signal_monitor":
+        df_fsm_trend  = FundingSignalDataLoader().load_data()
+        FundingSignalMonitorComponent(
+            grant_trend_data=df_fsm_trend,
+            publications_data=df_aurin_main,
+            openrouter_api_key=openrouter_api_key,
+        ).render()
 
 else:
     if not api_key:
