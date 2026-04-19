@@ -6,11 +6,11 @@ Usage:
     python cli.py [options]
 
 Examples:
-    uv run capture                                          # capture all sources
-    uv run capture --source dimensions --api-key <KEY>
-    uv run capture --source media
-    uv run capture --source policies --openrouter-key <KEY>
-    uv run capture --source all --from-date 2020-01-01 --to-date 2024-12-31
+    uv run cli.py                                          # capture all sources
+    uv run cli.py --source dimensions --api-key <KEY>
+    uv run cli.py --source media
+    uv run cli.py --source policies --openrouter-key <KEY>
+    uv run cli.py --source all --from-date 2020-01-01 --to-date 2024-12-31
 """
 import argparse
 import importlib.util

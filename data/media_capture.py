@@ -31,7 +31,7 @@ _SEARCH_TERMS = [
 _RSS_BASE = "https://news.google.com/rss/search?q={query}&hl=en-AU&gl=AU&ceid=AU:en"
 
 # Seconds to wait between RSS requests to avoid rate-limiting.
-_REQUEST_DELAY = 0.4
+_REQUEST_DELAY = 1.5
 
 
 def _monthly_windows(start_year: int = 2010) -> Generator[Tuple[str, str], None, None]:
@@ -106,8 +106,9 @@ class MediaCapture:
                 try:
                     rows = self._fetch_term(term, after=after, before=before)
                     all_rows.extend(rows)
+                    unique_so_far = len({r["id"] for r in all_rows})
                     if rows:
-                        print(f"[media] {after[:7]} '{term}': {len(rows)} entries")
+                        print(f"[media] {after[:7]} '{term}': {len(rows)} new  |  {unique_so_far} total captured")
                 except Exception as e:
                     print(f"[media] {after[:7]} '{term}' failed: {e}")
                 step += 1
@@ -136,7 +137,12 @@ class MediaCapture:
         feed = feedparser.parse(url)
 
         if feed.bozo and not feed.entries:
-            raise MediaCaptureError(f"RSS parse error: {feed.bozo_exception}")
+            # XML parse errors mean Google returned an HTML error/empty page — no data for this window.
+            # Only re-raise for real network/connection failures.
+            exc = feed.bozo_exception
+            if not hasattr(exc, "getLineNumber"):
+                raise MediaCaptureError(f"RSS fetch error: {exc}")
+            return []
 
         fetched_at = datetime.now(timezone.utc).isoformat()
         rows = []
