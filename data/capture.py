@@ -7,13 +7,18 @@ All API interaction is contained here; the rest of the application only reads
 from aurin_cache.db via AurinDatabase.
 """
 import datetime
+import importlib
+import importlib.util
+import pathlib
 import time
 from typing import Callable, List, Optional
+from zipfile import Path
 
 import dimcli
 import pandas as pd
 
 from data.database import AurinDatabase, TREND_FIXED
+from data.media_capture import MediaCapture
 
 
 _AURIN_SEARCH_TERMS = (
@@ -267,11 +272,13 @@ class DataCapture:
         from_date: Optional[str],
         to_date: Optional[str],
         endpoint: str = "https://app.dimensions.ai",
+        openrouter_api_key: Optional[str] = None,
     ) -> None:
         self.api_key = api_key
         self.from_date = from_date
         self.to_date = to_date
         self.endpoint = endpoint
+        self.openrouter_api_key = openrouter_api_key
 
     def capture_all(
         self,
@@ -309,19 +316,30 @@ class DataCapture:
             errors.append(f"Policy documents: {e}")
         progress_callback(0.20, "Policy documents done.")
 
-        progress_callback(0.21, "Fetching patents…")
+        
+        progress_callback(0.21, "Fetching media mentions…")
         try:
-            self._capture_patents(db, dsl)
+            self._capture_media_mentions(
+                db,
+                lambda f, lbl: progress_callback(0.21 + f * 0.19, lbl),
+            )
         except Exception as e:
-            errors.append(f"Patents: {e}")
-        progress_callback(0.30, "Patents done.")
+            errors.append(f"Media mentions: {e}")
+        progress_callback(0.40, "Media mentions done.")
 
-        progress_callback(0.31, "Fetching grants…")
-        try:
-            self._capture_grants(db, dsl)
-        except Exception as e:
-            errors.append(f"Grants: {e}")
-        progress_callback(0.40, "Grants done.")
+        # progress_callback(0.21, "Fetching patents…")
+        # try:
+        #     self._capture_patents(db, dsl)
+        # except Exception as e:
+        #     errors.append(f"Patents: {e}")
+        # progress_callback(0.30, "Patents done.")
+
+        # progress_callback(0.31, "Fetching grants…")
+        # try:
+        #     self._capture_grants(db, dsl)
+        # except Exception as e:
+        #     errors.append(f"Grants: {e}")
+        # progress_callback(0.40, "Grants done.")
 
         try:
             self._capture_research_trend(
@@ -393,6 +411,7 @@ class DataCapture:
         db.write_dataframe(df_investigators, "investigators")
 
     def _capture_policy_documents(self, db: AurinDatabase, dsl) -> None:
+        # running data capture from dimensions
         query = build_query_with_dates(
             _POLICY_QUERY, self.from_date, self.to_date, date_field="year", year_only=True
         )
@@ -401,26 +420,42 @@ class DataCapture:
         if db.upsert_dataframe(df, "policy_documents"):
             total = len(db.read_table("policy_documents"))
             db.record_fetch("policy_documents", self.from_date, self.to_date, total)
+        
+        # running data capture from web
+        if self.openrouter_api_key:
+            _agent_path = pathlib.Path(__file__).parent / "AI agents" / "aurin_policy_agent.py"
+            _spec = importlib.util.spec_from_file_location("aurin_policy_agent", _agent_path)
+            _agent = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_agent)
+            _agent.run(self.openrouter_api_key, search_provider=_agent.get_provider())
 
-    def _capture_patents(self, db: AurinDatabase, dsl) -> None:
-        query = build_query_with_dates(
-            _PATENTS_QUERY, self.from_date, self.to_date, date_field="publication_date"
-        )
-        df = _query_all_paginated(dsl, query)["main"]
-        df = df if df is not None and not df.empty else pd.DataFrame()
-        if db.upsert_dataframe(df, "patents"):
-            total = len(db.read_table("patents"))
-            db.record_fetch("patents", self.from_date, self.to_date, total)
+    
+    def _capture_media_mentions(
+        self,
+        db: AurinDatabase,
+        progress_callback: Callable[[float, str], None],
+    ) -> None:
+        MediaCapture().capture_all(db, progress_callback)
 
-    def _capture_grants(self, db: AurinDatabase, dsl) -> None:
-        query = build_query_with_dates(
-            _GRANTS_QUERY, self.from_date, self.to_date, date_field="start_date"
-        )
-        df = _query_all_paginated(dsl, query)["main"]
-        df = df if df is not None and not df.empty else pd.DataFrame()
-        if db.upsert_dataframe(df, "grants"):
-            total = len(db.read_table("grants"))
-            db.record_fetch("grants", self.from_date, self.to_date, total)
+    # def _capture_patents(self, db: AurinDatabase, dsl) -> None:
+    #     query = build_query_with_dates(
+    #         _PATENTS_QUERY, self.from_date, self.to_date, date_field="publication_date"
+    #     )
+    #     df = _query_all_paginated(dsl, query)["main"]
+    #     df = df if df is not None and not df.empty else pd.DataFrame()
+    #     if db.upsert_dataframe(df, "patents"):
+    #         total = len(db.read_table("patents"))
+    #         db.record_fetch("patents", self.from_date, self.to_date, total)
+
+    # def _capture_grants(self, db: AurinDatabase, dsl) -> None:
+    #     query = build_query_with_dates(
+    #         _GRANTS_QUERY, self.from_date, self.to_date, date_field="start_date"
+    #     )
+    #     df = _query_all_paginated(dsl, query)["main"]
+    #     df = df if df is not None and not df.empty else pd.DataFrame()
+    #     if db.upsert_dataframe(df, "grants"):
+    #         total = len(db.read_table("grants"))
+    #         db.record_fetch("grants", self.from_date, self.to_date, total)
 
     def _capture_research_trend(
         self,

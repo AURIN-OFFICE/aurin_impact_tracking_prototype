@@ -9,15 +9,26 @@ Examples:
     uv run capture                                          # capture all sources
     uv run capture --source dimensions --api-key <KEY>
     uv run capture --source media
+    uv run capture --source policies --openrouter-key <KEY>
     uv run capture --source all --from-date 2020-01-01 --to-date 2024-12-31
 """
 import argparse
+import importlib.util
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from data import AurinDatabase, DataCapture, CaptureError, MediaCapture, MediaCaptureError
+
+
+def _load_policy_agent():
+    agent_path = Path(__file__).parent / "data" / "AI agents" / "aurin_policy_agent.py"
+    spec = importlib.util.spec_from_file_location("aurin_policy_agent", agent_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _progress(fraction: float, label: str) -> None:
@@ -34,14 +45,31 @@ def main() -> None:
     )
     parser.add_argument(
         "-s", "--source",
-        choices=["all", "dimensions", "media"],
+        choices=["all", "dimensions", "media", "policies"],
         default="all",
-        help="Data source to capture: 'dimensions', 'media', or 'all' (default: all)",
+        help="Data source to capture: 'dimensions', 'media', 'policies', or 'all' (default: all)",
     )
     parser.add_argument(
         "-k", "--api-key",
         default=os.getenv("DIMENSIONS_API_KEY", ""),
         help="Dimensions API key (defaults to DIMENSIONS_API_KEY env var); required for 'dimensions' and 'all'",
+    )
+    parser.add_argument(
+        "--openrouter-key",
+        default=os.getenv("OPENROUTER_API_KEY", ""),
+        help="OpenRouter API key (defaults to OPENROUTER_API_KEY env var); required for 'policies' and 'all'",
+    )
+    parser.add_argument(
+        "--search-engine",
+        choices=["serpapi", "duckduckgo"],
+        default="serpapi",
+        dest="search_engine",
+        help="Search engine for policy capture (default: auto-detect based on available keys)",
+    )
+    parser.add_argument(
+        "--serpapi-key",
+        default=os.getenv("SERPAPI_KEY", ""),
+        help="SerpAPI key (defaults to SERPAPI_KEY env var)",
     )
     parser.add_argument(
         "-f", "--from-date",
@@ -64,9 +92,15 @@ def main() -> None:
     args = parser.parse_args()
 
     needs_dimensions = args.source in ("dimensions", "all")
+    needs_policies = args.source in ("policies", "all")
+
     if needs_dimensions and not args.api_key:
         parser.error(
             "No API key supplied for Dimensions. Pass --api-key or set the DIMENSIONS_API_KEY environment variable."
+        )
+    if needs_policies and not args.openrouter_key:
+        parser.error(
+            "No API key supplied for OpenRouter. Pass --openrouter-key or set the OPENROUTER_API_KEY environment variable."
         )
 
     db = AurinDatabase()
@@ -77,6 +111,7 @@ def main() -> None:
             from_date=args.from_date,
             to_date=args.to_date,
             endpoint=args.endpoint,
+            openrouter_api_key=args.openrouter_key or None,
         )
         try:
             capture.capture_all(db, progress_callback=_progress)
@@ -98,6 +133,19 @@ def main() -> None:
             sys.exit(2)
         except Exception as e:
             print(f"UNEXPECTED ERROR (media): {e}", file=sys.stderr)
+            sys.exit(3)
+
+    if needs_policies:
+        agent = _load_policy_agent()
+        provider = agent.get_provider(prefer=args.search_engine, serpapi_key=args.serpapi_key or None)
+        print(f"[policies] using search provider: {type(provider).__name__}")
+        if not provider.is_available():
+            print(f"ERROR (policies): {type(provider).__name__} is not available.", file=sys.stderr)
+            sys.exit(2)
+        try:
+            agent.run(args.openrouter_key, search_provider=provider)
+        except Exception as e:
+            print(f"UNEXPECTED ERROR (policies): {e}", file=sys.stderr)
             sys.exit(3)
 
 

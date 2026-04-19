@@ -66,7 +66,7 @@ if st.session_state.get('refresh_requested'):
     _progress = st.progress(0.0, text="Starting data capture…")
     try:
         db = AurinDatabase()
-        capture = DataCapture(api_key, from_date_str, to_date_str)
+        capture = DataCapture(api_key, from_date_str, to_date_str, openrouter_api_key=openrouter_api_key)
         capture.capture_all(
             db,
             progress_callback=lambda frac, label: _progress.progress(frac, text=label),

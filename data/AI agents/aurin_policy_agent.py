@@ -39,7 +39,6 @@ load_dotenv()
 QUERIES = [
     '"AURIN" site:gov.au filetype:pdf',
     '"Australian Urban Research Infrastructure Network" site:gov.au filetype:pdf',
-    '"Australian Urban Research Infrastructure Network" site:gov.au filetype:docx',
     '"AURIN" "NCRIS" policy report filetype:pdf',
     '"Australian Urban Research Infrastructure Network" policy filetype:pdf',
     '"AURIN" research infrastructure strategy filetype:pdf',
