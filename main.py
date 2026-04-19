@@ -28,6 +28,15 @@ from components.grant_trend import GrantTrendMonitorComponent
 from components.media_monitor import MediaMonitorComponent
 from components.ai_summary import AISummaryComponent
 from components.ai_providers.openrouter_provider import OpenRouterProvider
+from components.pdf_export import (
+    generate_research_papers_pdf,
+    generate_research_organisations_pdf,
+    generate_policy_documents_pdf,
+    generate_patents_pdf,
+    generate_grants_pdf,
+    generate_research_trend_pdf,
+    generate_grant_trend_pdf,
+)
 
 # Page configuration
 st.set_page_config(
@@ -90,6 +99,19 @@ df_policies = PolicyDocumentsDataLoader().load_data(from_date=from_date_str, to_
 df_web_policies = WebPolicyDocumentsDataLoader().load_data()
 df_patents = PatentsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
 df_grants = GrantsDataLoader().load_data(from_date=from_date_str, to_date=to_date_str)
+def _export_btn(label: str, pdf_bytes: bytes, filename: str) -> None:
+    """Render a PDF download button aligned to the right of the page."""
+    _, col = st.columns([5, 1])
+    with col:
+        st.download_button(
+            label=label,
+            data=pdf_bytes,
+            file_name=filename,
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+
 # Media Monitor tab: works independently of Dimensions data
 if active_tab == "media_monitor":
     MediaMonitorComponent().render()
@@ -100,6 +122,7 @@ has_data = df_aurin_main is not None and not df_aurin_main.empty
 
 if has_data:
     if active_tab == "ai_summary":
+        # No structured data to export — AI summary is generated text
         AISummaryComponent(
             main_data=df_aurin_main,
             affiliations_data=df_affiliations,
@@ -112,6 +135,11 @@ if has_data:
         ).render()
 
     elif active_tab == "research_papers":
+        _export_btn(
+            "📄 Export PDF",
+            generate_research_papers_pdf(df_aurin_main, df_affiliations, from_date_str, to_date_str),
+            "research_papers.pdf",
+        )
         KeyMetricsComponent(main_data=df_aurin_main, affiliations_data=df_affiliations).render()
         TrendsComponent(data=df_aurin_main).render()
         TopCitedArticlesComponent(data=df_aurin_main).render()
@@ -121,24 +149,54 @@ if has_data:
         ConceptsComponent(data=df_aurin_main).render()
 
     elif active_tab == "research_organisations":
+        _export_btn(
+            "📄 Export PDF",
+            generate_research_organisations_pdf(df_affiliations, from_date_str, to_date_str),
+            "research_organisations.pdf",
+        )
         AffiliatedOrganisationsComponent(main_data=df_aurin_main, affiliations_data=df_affiliations).render()
         AffiliatedCountriesComponent(affiliations_data=df_affiliations).render()
 
     elif active_tab == "policy_documents":
+        _export_btn(
+            "📄 Export PDF",
+            generate_policy_documents_pdf(df_policies, df_web_policies, from_date_str, to_date_str),
+            "policy_documents.pdf",
+        )
         PolicyDocumentsComponent(data=df_policies, web_data=df_web_policies).render()
 
     elif active_tab == "patents":
+        _export_btn(
+            "📄 Export PDF",
+            generate_patents_pdf(df_patents, from_date_str, to_date_str),
+            "patents.pdf",
+        )
         PatentsComponent(data=df_patents).render()
 
     elif active_tab == "aurin_fundings":
+        _export_btn(
+            "📄 Export PDF",
+            generate_grants_pdf(df_grants, from_date_str, to_date_str),
+            "aurin_fundings.pdf",
+        )
         GrantsComponent(data=df_grants).render()
 
     elif active_tab == "research_trend_monitor":
         df_trend_monitor = ResearchTrendMonitorDataLoader().load_data()
+        _export_btn(
+            "📄 Export PDF",
+            generate_research_trend_pdf(df_trend_monitor),
+            "research_trend_monitor.pdf",
+        )
         ResearchTrendMonitorComponent(publications_data=df_trend_monitor).render()
 
     elif active_tab == "grant_trend_monitor":
         df_grant_trend_monitor = GrantTrendMonitorDataLoader().load_data()
+        _export_btn(
+            "📄 Export PDF",
+            generate_grant_trend_pdf(df_grant_trend_monitor),
+            "grant_trend_monitor.pdf",
+        )
         GrantTrendMonitorComponent(grants_data=df_grant_trend_monitor).render()
 
 else:
