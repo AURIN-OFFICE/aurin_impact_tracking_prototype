@@ -15,6 +15,7 @@ Reads OPENROUTER_API_KEY and SERPAPI_KEY from .env if not passed directly.
 Default search engine: SerpAPI when SERPAPI_KEY is set, else DuckDuckGo.
 """
 import argparse
+import concurrent.futures
 import io
 import json
 import os
@@ -65,17 +66,31 @@ def _response_is_pdf(response: requests.Response) -> bool:
     return "pdf" in response.headers.get("Content-Type", "").lower()
 
 
+_PDF_PARSE_TIMEOUT = 45  # seconds; pdfplumber can hang on large/malformed PDFs
+
+
+def _parse_pdf_bytes(content: bytes) -> str:
+    import pdfplumber
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        pages = [p.extract_text() or "" for p in pdf.pages]
+    return "\n".join(pages)
+
+
 def fetch_pdf_text(url: str) -> str | None:
     try:
-        import pdfplumber
         resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         if not (_response_is_pdf(resp)):
             print(f"  [skip] not a PDF (Content-Type): {url}")
             return None
-        with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
-            pages = [p.extract_text() or "" for p in pdf.pages]
-        return "\n".join(pages)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(_parse_pdf_bytes, resp.content)
+        executor.shutdown(wait=False)  # don't block main thread if parse stalls
+        try:
+            return future.result(timeout=_PDF_PARSE_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            print(f"  [timeout] PDF parsing timed out, skipping: {url}")
+            return None
     except Exception as exc:
         print(f"  [skip] fetch error for {url}: {exc}")
         return None
