@@ -65,7 +65,8 @@ def _response_is_pdf(response: requests.Response) -> bool:
     return "pdf" in response.headers.get("Content-Type", "").lower()
 
 
-_PDF_PARSE_TIMEOUT = 45  # seconds; pdfplumber can hang on large/malformed PDFs
+_MAX_PDF_BYTES = 20 * 1024 * 1024   # 20 MB — skip larger PDFs before OOM
+_PDF_PARSE_TIMEOUT = 45             # seconds for pdfplumber parsing
 
 
 class _PDFTimeout(Exception):
@@ -80,15 +81,28 @@ def fetch_pdf_text(url: str) -> str | None:
         raise _PDFTimeout()
 
     try:
-        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        if not (_response_is_pdf(resp)):
-            print(f"  [skip] not a PDF (Content-Type): {url}")
-            return None
+        with requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"}, stream=True) as resp:
+            resp.raise_for_status()
+            if not (_response_is_pdf(resp)):
+                print(f"  [skip] not a PDF (Content-Type): {url}")
+                return None
+            cl = int(resp.headers.get("Content-Length", 0))
+            if cl > _MAX_PDF_BYTES:
+                print(f"  [skip] PDF too large ({cl // 1_000_000} MB): {url}")
+                return None
+            chunks, total = [], 0
+            for chunk in resp.iter_content(chunk_size=65536):
+                total += len(chunk)
+                if total > _MAX_PDF_BYTES:
+                    print(f"  [skip] PDF too large (>{_MAX_PDF_BYTES // 1_000_000} MB): {url}")
+                    return None
+                chunks.append(chunk)
+            content = b"".join(chunks)
+
         old_handler = signal.signal(signal.SIGALRM, _handler)
         signal.alarm(_PDF_PARSE_TIMEOUT)
         try:
-            with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
                 pages = [p.extract_text() or "" for p in pdf.pages]
             return "\n".join(pages)
         except _PDFTimeout:
