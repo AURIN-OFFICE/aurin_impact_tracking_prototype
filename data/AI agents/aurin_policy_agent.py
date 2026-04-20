@@ -15,7 +15,6 @@ Reads OPENROUTER_API_KEY and SERPAPI_KEY from .env if not passed directly.
 Default search engine: SerpAPI when SERPAPI_KEY is set, else DuckDuckGo.
 """
 import argparse
-import concurrent.futures
 import io
 import json
 import os
@@ -69,28 +68,35 @@ def _response_is_pdf(response: requests.Response) -> bool:
 _PDF_PARSE_TIMEOUT = 45  # seconds; pdfplumber can hang on large/malformed PDFs
 
 
-def _parse_pdf_bytes(content: bytes) -> str:
-    import pdfplumber
-    with pdfplumber.open(io.BytesIO(content)) as pdf:
-        pages = [p.extract_text() or "" for p in pdf.pages]
-    return "\n".join(pages)
+class _PDFTimeout(Exception):
+    pass
 
 
 def fetch_pdf_text(url: str) -> str | None:
+    import pdfplumber
+    import signal
+
+    def _handler(signum, frame):
+        raise _PDFTimeout()
+
     try:
         resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         if not (_response_is_pdf(resp)):
             print(f"  [skip] not a PDF (Content-Type): {url}")
             return None
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(_parse_pdf_bytes, resp.content)
-        executor.shutdown(wait=False)  # don't block main thread if parse stalls
+        old_handler = signal.signal(signal.SIGALRM, _handler)
+        signal.alarm(_PDF_PARSE_TIMEOUT)
         try:
-            return future.result(timeout=_PDF_PARSE_TIMEOUT)
-        except concurrent.futures.TimeoutError:
+            with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
+                pages = [p.extract_text() or "" for p in pdf.pages]
+            return "\n".join(pages)
+        except _PDFTimeout:
             print(f"  [timeout] PDF parsing timed out, skipping: {url}")
             return None
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
     except Exception as exc:
         print(f"  [skip] fetch error for {url}: {exc}")
         return None
